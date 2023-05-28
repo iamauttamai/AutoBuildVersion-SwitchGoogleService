@@ -1,0 +1,157 @@
+import java.util.regex.Pattern
+apply plugin: 'com.android.application'
+
+// Apply the Crashlytics Gradle plugin
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlin-parcelize'
+
+def buildType
+android {
+    namespace 'com.iamauttamai.autobuildversioncode'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.iamauttamai.autobuildversioncode"
+        minSdk 28
+        targetSdk 33
+        versionCode getVersionCodes()
+        versionName getVersionNames()
+        multiDexEnabled true
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        viewBinding true
+    }
+    dataBinding {
+        //noinspection DataBindingWithoutKapt
+        enabled = true
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            applicationVariants.all { variant ->
+
+                def variantType = variant.buildType.name
+                println "Variant re type: $variantType"
+                renameAPK(variant)
+                buildType = variantType
+            }
+        }
+        debug {
+            applicationVariants.all { variant ->
+
+                def variantType = variant.buildType.name
+                println "Variant de type: $variantType"
+                buildType = variantType
+                renameAPK(variant)
+            }
+        }
+    }
+    android {
+        lintOptions {
+            checkReleaseBuilds false
+            // Or, if you prefer, you can continue to check for errors in release builds,
+            // but continue the build even when errors are found:
+            abortOnError false
+        }
+    }
+}
+
+def renameAPK(variant) {
+    variant.outputs.all { output ->
+        def fileName = applicationName + ".apk"
+        outputFileName = new File(fileName)
+    }
+}
+
+project.gradle.taskGraph.whenReady {
+    def task = project.gradle.taskGraph.allTasks.get(project.gradle.taskGraph.allTasks.size()-1)
+    if(task.name == "bundleRelease"){
+        def buildFile = file("version.txt")
+        def pattern = Pattern.compile("versionCode\\s+(\\d+)")
+        def manifestText = buildFile.getText()
+        def matcher = pattern.matcher(manifestText)
+        matcher.find()
+        def versionCode = Integer.parseInt(matcher.group(1))
+        def manifestContent = matcher.replaceAll("versionCode " + ++versionCode)
+        buildFile.write(manifestContent)
+    }
+    println("test $task.name")
+}
+tasks.whenTaskAdded { task ->
+//    println("Log: current build type is $buildType $task.name")
+}
+
+import java.util.regex.Pattern
+
+def getVersionCodes(){
+    def buildFile = file("version.txt")
+    def pattern = Pattern.compile("versionCode\\s+(\\d+)")
+    def manifestText = buildFile.getText()
+    def matcher = pattern.matcher(manifestText)
+    matcher.find()
+    def versionCode = Integer.parseInt(matcher.group(1))
+    return versionCode
+}
+
+def getVersionNames(){
+    def buildFile = file("version.txt")
+    def pattern = Pattern.compile("versionName\\s+(\\d+)\\.(\\d+)\\.(\\d+)")
+    def manifestText = buildFile.getText()
+    def matcher = pattern.matcher(manifestText)
+    matcher.find()
+    def firstPart = Integer.parseInt(matcher.group(1))
+    def secondPart = Integer.parseInt(matcher.group(2))
+    def thirstPart = Integer.parseInt(matcher.group(3))
+    def versionName = firstPart + "." + secondPart+ "." + thirstPart
+    return versionName
+}
+
+//*******************************************************
+// apply id google-service to file debug and main in app
+// apply plugin: 'com.google.gms.google-services'
+// and now you can uncomment under this to use auto switch google-service file
+//*******************************************************
+
+//task switchToDebug(type: Copy) {
+//    description = 'Switches to DEBUG google-services.json'
+//    from "debug"
+//    include "google-services.json"
+//    into "."
+//}
+//
+//task switchToRelease(type: Copy) {
+//    description = 'Switches to RELEASE google-services.json'
+//    from "main"
+//    include "google-services.json"
+//    into "."
+//}
+//afterEvaluate {
+//    processDebugGoogleServices.dependsOn switchToDebug
+//    processReleaseGoogleServices.dependsOn switchToRelease
+//}
+
+dependencies {
+
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
